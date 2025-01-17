@@ -17,20 +17,6 @@ async def connect_to_device(
     """
     Scan and connect to a device then print notifications for 10 seconds before
     disconnecting.
-
-    Args:
-        lock:
-            The same lock must be passed to all calls to this function.
-        by_address:
-            If true, treat *name_or_address* as an address, otherwise treat
-            it as a name.
-        macos_use_bdaddr:
-            If true, enable hack to allow use of Bluetooth address instead of
-            UUID on macOS.
-        name_or_address:
-            The Bluetooth address/UUID of the device to connect to.
-        notify_uuid:
-            The UUID of a characteristic that supports notifications.
     """
     logging.info("starting %s task", name_or_address)
 
@@ -103,61 +89,18 @@ async def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "device1",
-        metavar="<device>",
-        help="Bluetooth name or address of first device connect to",
-    )
-    parser.add_argument(
-        "uuid1",
-        metavar="<uuid>",
-        help="notification characteristic UUID on first device",
-    )
-    parser.add_argument(
-        "device2",
-        metavar="<device>",
-        help="Bluetooth name or address of second device to connect to",
-    )
-    parser.add_argument(
-        "uuid2",
-        metavar="<uuid>",
-        help="notification characteristic UUID on second device",
-    )
-
-    parser.add_argument(
-        "--by-address",
-        action="store_true",
-        help="when true treat <device> args as Bluetooth address instead of name",
-    )
-
-    parser.add_argument(
-        "--macos-use-bdaddr",
-        action="store_true",
-        help="when true use Bluetooth address instead of UUID on macOS",
-    )
-
-    parser.add_argument(
-        "-d",
-        "--debug",
-        action="store_true",
-        help="sets the log level to debug",
-    )
-
-    args = parser.parse_args()
-
-    log_level = logging.DEBUG if args.debug else logging.INFO
+    log_level = logging.INFO
     logging.basicConfig(
         level=log_level,
         format="%(asctime)-15s %(name)-8s %(levelname)s: %(message)s",
     )
 
+    HRM_name = "HW706-0020070"
+    HRM_ID = "0000180d-0000-1000-8000-00805f9b34fb"
+    # BIKE_NAME = "KICKR CORE 470A"
+    # BIKE_ID = "00001818-0000-1000-8000-00805f9b34fb"
+
     asyncio.run(
-        main(
-            args.by_address,
-            args.macos_use_bdaddr,
-            (args.device1, args.device2),
-            (args.uuid1, args.uuid2),
-        )
+        main( True, True, (HRM_name ), (HRM_ID) )
     )

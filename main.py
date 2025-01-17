@@ -4,14 +4,14 @@ import time
 import asyncio
 
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel
-from PySide6.QtCore import Slot, Signal
+from PySide6.QtWidgets import QApplication, QMainWindow
 
 from src.config_manager import ConfigManager
 from src.config_manager import USER_NAME, WORKOUT_BY_POWER,TV_MODE,HR_ZONES,ROLLING_RESISTANCE,DRAG_COEFFICIENT,TRAINER_ID
 from src.workout_manager import WorkoutManager
 from src.ui import UI
 
+import asyncio
 
 
 class MainWindow(QMainWindow):

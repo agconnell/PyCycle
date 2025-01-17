@@ -1,11 +1,6 @@
 
-from PySide6.QtWidgets import QWidget, QTabWidget, QVBoxLayout
-from PySide6.QtCore import Slot, Signal
-
-
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-import random
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton
+from src.plot import Plot
 
 COLOR_LIST = ['red', 'green']
 
@@ -14,30 +9,58 @@ class UI(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
+        self.start_btn = QPushButton("Start")
+        self.pause_btn = None
+        self.stop_btn = None
+        self.start_btn = QPushButton("Start")
+        self.pause_btn = QPushButton("Pause")
+        self.stop_btn = QPushButton("Stop")
+        self.start_btn.clicked.connect(self.start)
+        self.pause_btn.clicked.connect(self.pause)
+        self.stop_btn.clicked.connect(self.stop)
 
-        self.xvals = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        self.yvals = []
+    def start(self):
+        self.parent.statusBar().showMessage('Started')
+        self.hr.start()
+        self.power.start()
+        self.cadence.start()
 
-    def plot(self, title, color_id, ylabel):
-        self.yvals = []
-        for i in range(0, 10):
-            y = random.uniform(200, 250)
-            self.yvals.append(y)
+    def pause(self):
+        self.parent.statusBar().showMessage('Paused')
+        self.hr.pause()
+        self.power.pause()
+        self.cadence.pause()
+        
+    def stop(self):
+        self.parent.statusBar().showMessage('Stopped')
+        self.hr.stop()
+        self.power.stop()
+        self.cadence.stop()
+        
 
-        self.fig = Figure(figsize=(1300, 300))
-        self.canvas = FigureCanvas(self.fig)  
-        self.ax = self.fig.add_subplot(1, 1, 1)
+    def render_buttons(self):
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.start_btn)
+        button_layout.addWidget(self.pause_btn)
+        button_layout.addWidget(self.stop_btn)
+        self.layout.addLayout(button_layout)
 
-        self.ax.plot(self.xvals, self.yvals, color=COLOR_LIST[color_id])
-        self.ax.legend().set_draggable(True)  
+    def render_plots(self):
 
-        self.ax.set_ylabel(ylabel, rotation='horizontal' )
-        self.ax.set_title(title)
-        return self.canvas
+        self.hr = Plot("Heart Rate","BPM", (60, 150), 'red', 'lightcoral')
+        self.layout.addWidget(self.hr.plot())
+
+        self.power = Plot("Power", "Watts", (200, 250), "green", 'palegreen')
+        self.layout.addWidget(self.power.plot())
+
+        self.cadence = Plot("Cadence", "RPM", (70, 120), "blue", 'lightskyblue')
+        self.layout.addWidget(self.cadence.plot())
 
     def render(self):
         self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.plot("Heart Rate", 0, "BPM"))
-        self.layout.addWidget(self.plot("Power", 1, "Watts"))
+        self.render_buttons()
+        self.render_plots()
+
         self.parent.statusBar().showMessage('Ready')
+
         
