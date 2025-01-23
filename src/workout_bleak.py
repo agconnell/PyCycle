@@ -1,6 +1,6 @@
 
-from src.heart_rate_service import HeartRateService
-from src.cycling_power_service import CyclingPowerService
+from src.hrm_service import HeartRateService
+from src.pm_service import CyclingPowerService
 
 from src.mongo import Mongo
 

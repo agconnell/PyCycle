@@ -1,4 +1,4 @@
-from data_broker import DataBroker, Data
+from src.data_broker import DataBroker, Data
 import abc
 
 class Observer:

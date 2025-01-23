@@ -15,8 +15,6 @@ class DataBroker:
     def remove_observer(self, observer):
         self.observers.remove(observer)
 
-    def add_data(self, data):
-        self.data.append(data)
-        
+    def add_data(self, data):        
         for observer in self.observers:
             observer.notify(data)

@@ -2,11 +2,10 @@ import matplotlib.pyplot as pyplot
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PySide6.QtWidgets import QWidget
-import random
 from PySide6.QtCore import QTimer
 import numpy as np
 
-from observer import Observer
+from src.observer import Observer
 
 NUMBER_OF_POINTS = 20
 
