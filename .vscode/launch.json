@@ -12,12 +12,12 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Run Two",
+            "name": "HRM",
             "type": "debugpy",
             "request": "launch",
-            "program": "src/two_devices.py",
+            "program": "hrm/hrm.py",
             "console": "integratedTerminal",
-            "args": ["HW706-0020070", "0000180d-0000-1000-8000-00805f9b34fb", "KICKR CORE 470A", "00001818-0000-1000-8000-00805f9b34fb"]
+            "args": ["12345"]
         }
     ]
 }
