@@ -4,7 +4,7 @@ import asyncio
 
 
 from PySide6.QtWidgets import QApplication, QMainWindow
-from asyncqt import QEventLoop
+from asyncqtpy import QEventLoop
 
 from src.ui import UI
 

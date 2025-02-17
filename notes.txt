@@ -1,0 +1,13 @@
+Status and Notes
+--------------------------------------------------------------------------
+2/10/25  - notes after not working on project for a few weeks
+* got new dev laptop and so moving work to it
+* will move code into docker container to keep separate
+* as far as I remember it was kind of working but threading issues. 
+    - I had created a simple sub test to work on running each bluetooth process in separate python process
+    - it needs to communicate via zmq and that wasn't 100%
+* next steps
+    - create docker container and move code in
+    - get zmq communication working
+    - integrate zmq code into actual app
+    

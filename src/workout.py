@@ -1,4 +1,4 @@
-import os
+import os, sys
 import atexit
 import subprocess
 from pathlib import Path
@@ -7,11 +7,18 @@ from datetime import datetime as dt
 import uuid
 from math import floor, ceil
 from db.mongo import Mongo
+from pymongo import DESCENDING, ASCENDING
+import zmq
 
-DONE = 'done'
-PAUSE = 'pause'
-XAXIS_RANGE = 60*5 #5 minutes
-TICK_GAP = 30 #30 seconds
+STOPPED = 0
+RUNNING = 1
+PAUSED = 2
+UNPAUSE = 4
+DONE = 3
+
+
+XAXIS_RANGE = 30 #5 minutes
+TICK_GAP = 5 #30 seconds
 
 ##TODO move this to a common module it's duplicated in hrm.py
 def to_time(secs):
@@ -38,52 +45,73 @@ class Workout():
         self.mongo = Mongo()
         self.collection = self.mongo.get_collection()
         self.uuid = uuid.uuid4().hex
+        self.status = STOPPED
 
-    def ticker(self, min, max):
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PUB)
+        self.socket.bind("tcp://*:5555")
+
+    def ticker(self, min, max, num_points):
         ticks = []
         max = max + TICK_GAP    
-        if max <= 300:
+        if num_points < XAXIS_RANGE:
             min = 0
-            max = 330
+            max = XAXIS_RANGE + TICK_GAP
         for i in range(min, max, TICK_GAP):
             ticks.append(i)
         return ticks
 
-    def get_hr_data(self):
-        data = self.collection.find({'id': self.uuid}).sort('timestamp', 1)
-        data = list(data.limit(XAXIS_RANGE))
+    def get_data(self, field):
+        data = self.collection.find({'id': self.uuid, field: { '$exists': True } }).sort('timestamp', ASCENDING)
+        data = list(data)
+        data = data[-XAXIS_RANGE:]
+
+        self.send_status()
         if len(data) == 0:
             return [], [], []
         
+        
         res = {key: [d[key] for d in data] for key in data[0].keys()}
-        yvals = res['bpm']
-        xvals = res['timestamp']
+        if field in res:
+            yvals = res[field]
+            xvals = res['timestamp']
+        else:
+            return [], [], []
 
         min = xvals[0]
         max = xvals[-1]
-        ticks = self.ticker(min, max)
+        ticks = self.ticker(min, max, len(xvals))
 
 
         return xvals, yvals, ticks
     
     def start(self):
         print('Start main')
-        if Path(DONE).exists():
-            os.remove(DONE)
-        if Path(PAUSE).exists():
-            os.remove(PAUSE)
-        
-        subprocess.Popen(["python", "hrm/hrm.py", self.uuid])
+        self.status = RUNNING
+        python_executable = sys.executable
+        subprocess.Popen([python_executable, 'fake_data/data_generator.py', 'bpm', self.uuid])
+        subprocess.Popen([python_executable, 'fake_data/data_generator.py', 'Watts', self.uuid])
+        subprocess.Popen([python_executable, 'fake_data/data_generator.py', 'rpm', self.uuid])
             
     def stop(self):
-        print('Shutdown')
-        Path(DONE).touch()
-        time.sleep(2)
+        print('Stop')
+        self.status = STOPPED
 
-    def pause(self):
-        print('Pause')
-        Path(PAUSE).touch()
-        time.sleep(2)
+    def pause(self):  
+        print('pause')     
+        if self.status == PAUSED:
+            self.status = UNPAUSE
+            self.send_status()
+            self.status = RUNNING
+        else:
+            self.status = PAUSED
+
+    def is_paused(self):    
+        return self.status == PAUSED
+        
+    def send_status(self):
+        s = str(self.status)
+        self.socket.send_string(s)
 
     def msg_callback(self, msg):
         print(msg)  

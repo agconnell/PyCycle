@@ -12,8 +12,8 @@ from mongo import Mongo
 
 DONE = 'done'
 PAUSE = 'pause'
-RECORDING = True
-
+RECORDING = False
+DATA_FIELD = 'bpm'
 class HeartRateMonitor():
 
     def __init__(self, workout_id=1):
@@ -24,9 +24,12 @@ class HeartRateMonitor():
         self.client = None
         self.hr_service = None
         self.uuid = workout_id
-        # self.context = zmq.Context()
-        # self.socket = self.context.socket(zmq.PAIR)
-        # self.socket.connect("tcp://localhost:1234")
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PAIR)
+        self.socket.connect("tcp://localhost:1234")
+
+    def connect(self):
+        print('connect to hrm')
 
     def to_time(self, secs):
         secs = round(secs)
@@ -45,7 +48,7 @@ class HeartRateMonitor():
             return f"{m:02}:{s:02}"
         else:
             return f"{h:02}:{m:02}:{s:02}"
-    
+
     async def check_pause(self):
         # print("w1 check if done")
         if os.path.exists(PAUSE):
@@ -65,7 +68,7 @@ class HeartRateMonitor():
         if RECORDING:
             n = dt.now()
             ts = round(n.timestamp()-self.start_time)
-            d = {'date': n, 'timestamp': ts,'bpm': data.bpm, 'id': self.uuid}
+            d = {'date': n, 'timestamp': ts, DATA_FIELD: getattr(data, DATA_FIELD), 'power': 123, 'id': self.uuid}
             self.mongo.insert_data_point(d)
         else:
             print("HeartRateMonitor not recording.... bpm: ", data.bpm)
@@ -80,6 +83,7 @@ class HeartRateMonitor():
                     while self.RUNNING:
                         await self.check_done()
                         await self.check_pause()
+
                         await asyncio.sleep(1)
                     
         except Exception as e:

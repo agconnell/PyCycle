@@ -4,12 +4,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import QTimer
 import numpy as np
-import zmq
 import threading
 
 class Plot(QWidget):
 
-    def __init__(self,name, ylabel, range, color, avg_color, callback=None, port=1234):
+    def __init__(self,name, data_field, ylabel, range, color, avg_color, callback=None):
         super(Plot, self).__init__()
 
         self.timer = None
@@ -18,6 +17,7 @@ class Plot(QWidget):
 
         # Create figure and axes
         self.name = name
+        self.data_field = data_field
         self.ylabel = ylabel
         self.color = color
         self.avg_color = avg_color
@@ -29,27 +29,19 @@ class Plot(QWidget):
         self.run_time = 0
         self.avg = 0
 
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.PAIR)
-        self.socket.bind(f"tcp://*:{port}")
-
     def notify(self, data):
         self.yvals.append(data.value)
         self.xvals.append(self.to_time(data.run_time))
-
-    def listen(self):
-        while True:
-            msg = self.socket.recv_string()
-            print(msg)
-            # time.sleep(1)
 
     def update(self):
         if not self.running:
             return
         if self.workout is None:
             return
+        if self.workout.is_paused():
+            return
         
-        self.xvals, self.yvals, ticks = self.workout.get_hr_data()
+        self.xvals, self.yvals, ticks = self.workout.get_data(self.data_field)
         if len(self.xvals) == 0:
             return
        
@@ -79,15 +71,15 @@ class Plot(QWidget):
         self.workout = workout
         self.timer = QTimer()
         self.timer.timeout.connect(lambda: self.update())
-        self.timer.start(1000)  # Update the label every 1000 milliseconds (1 second)
-        t = threading.Thread(target=self.listen).start()
+        self.timer.start(200)  # Update the label every 1000 milliseconds (1 second)
+        # t = threading.Thread(target=self.listen).start()
         # t.join()
 
     def stop(self):
         self.running = False
 
     def pause(self):
-        self.running = False
+        self.paused = True
 
     def plot(self):
 
