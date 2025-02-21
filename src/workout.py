@@ -1,21 +1,21 @@
-import os, sys
+import sys
 import atexit
 import subprocess
-from pathlib import Path
-import time
-from datetime import datetime as dt
 import uuid
 from math import floor, ceil
 from db.mongo import Mongo
 from pymongo import DESCENDING, ASCENDING
 import zmq
+import threading
+import time
+import json
+
 
 STOPPED = 0
-RUNNING = 1
-PAUSED = 2
-UNPAUSE = 4
-DONE = 3
-
+PAUSED = 1
+UNPAUSE = 2
+RUNNING = 3
+DONE = 4
 
 XAXIS_RANGE = 30 #5 minutes
 TICK_GAP = 5 #30 seconds
@@ -40,16 +40,65 @@ def to_time(secs):
         return f"{h:02}:{m:02}:{s:02}"
     
 class Workout():
-    def __init__(self):
+    def __init__(self, cb_hr, cb_power, cb_cadence):
         atexit.register(self.stop)   
         self.mongo = Mongo()
         self.collection = self.mongo.get_collection()
         self.uuid = uuid.uuid4().hex
         self.status = STOPPED
 
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.PUB)
-        self.socket.bind("tcp://*:5555")
+        self.msg_thread = threading.Thread(target=self.msg_workers)
+        self.msg_thread.start()
+
+        self.cb_hr = cb_hr
+        self.cb_power = cb_power
+        self.cb_cadence = cb_cadence
+
+        #keeps track of which lrus are connected
+        self.connections_state = {'bpm': 0, 'Watts': 0, 'rpm': 0}
+
+    def __del__(self):
+        self.status =  DONE
+        time.sleep(1)
+        print(f"Object {self.name} destroyed.")
+
+    def set_vals(self, k, v):
+        if k == 'bpm':
+            self.cb_hr(v)
+        elif k == 'Watts':
+            self.cb_power(v)
+        elif k == 'rpm':
+            self.cb_cadence(v)
+
+    def get_connection_status(self):
+        # if self.connections_state['bpm'] == True and self.connections_state['Watts'] == True and  self.connections_state['rpm'] == True:
+        #     self.
+        return self.connections_state
+
+    def msg_workers(self):
+        context = zmq.Context()
+        server = context.socket(zmq.REP)
+        server.bind("tcp://*:5555")
+
+        while self.status < DONE:
+            s = str(self.status).encode()
+            try:
+                data = json.loads(server.recv_json())
+
+                print(f'workout recieved state: {data}')
+                if "connected" in data:
+                    f = data['field']
+                    c = data['connected']
+                    self.connections_state[f] = c
+                    print(f"{f} connection state {c}")
+                elif 'field' in data and 'value' in data:
+                    self.set_vals(data['field'], data['value'])
+                server.send(s)
+                print(f'workout sending state: {self.status}')
+            except Exception as e:
+                print(f'zmq receiver not ready: {e}')
+
+            time.sleep(0.5)
 
     def ticker(self, min, max, num_points):
         ticks = []
@@ -65,8 +114,7 @@ class Workout():
         data = self.collection.find({'id': self.uuid, field: { '$exists': True } }).sort('timestamp', ASCENDING)
         data = list(data)
         data = data[-XAXIS_RANGE:]
-
-        self.send_status()
+        
         if len(data) == 0:
             return [], [], []
         
@@ -82,36 +130,35 @@ class Workout():
         max = xvals[-1]
         ticks = self.ticker(min, max, len(xvals))
 
-
         return xvals, yvals, ticks
     
+    def connect(self):
+        print('Start main')
+        self.set_status(RUNNING)
+        python_executable = sys.executable
+        subprocess.Popen([python_executable, 'lrus/data_generator.py', 'bpm', self.uuid])
+        subprocess.Popen([python_executable, 'lrus/data_generator.py', 'Watts', self.uuid])
+        subprocess.Popen([python_executable, 'lrus/data_generator.py', 'rpm', self.uuid])
+      
     def start(self):
         print('Start main')
-        self.status = RUNNING
-        python_executable = sys.executable
-        subprocess.Popen([python_executable, 'fake_data/data_generator.py', 'bpm', self.uuid])
-        subprocess.Popen([python_executable, 'fake_data/data_generator.py', 'Watts', self.uuid])
-        subprocess.Popen([python_executable, 'fake_data/data_generator.py', 'rpm', self.uuid])
-            
+        self.set_status(RUNNING)
+
     def stop(self):
         print('Stop')
-        self.status = STOPPED
+        self.set_status(STOPPED)
+
+    def done(self):
+        print('DONE!')
+        self.set_status(DONE)
 
     def pause(self):  
         print('pause')     
         if self.status == PAUSED:
-            self.status = UNPAUSE
-            self.send_status()
-            self.status = RUNNING
+            self.set_status(RUNNING)
         else:
-            self.status = PAUSED
-
-    def is_paused(self):    
-        return self.status == PAUSED
+            self.set_status(PAUSED)
         
-    def send_status(self):
-        s = str(self.status)
-        self.socket.send_string(s)
+    def set_status(self, status):
+        self.status = status
 
-    def msg_callback(self, msg):
-        print(msg)  

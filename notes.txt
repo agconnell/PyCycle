@@ -1,13 +1,29 @@
 Status and Notes
 --------------------------------------------------------------------------
+2/18/25 -- did a bunch of work over long weekend
+- ui and charts have made great progress
+- need to document state changes -- state machine
+- a bunch of props need to be configured like 'bpm', 'Watts' etc.
+- now data is passed between UI and workout needs to be rethought
+- enable and disable of buttons needs a rethink
+- a lot of settings and options can be moved to a config page
+    - power/rpm enable
+- add mongo process to merge values that happen at the same second
+- add average values for all LRUs
+- add background view with expected workout values to charts
+
+2/17/25 -- some notes on next tasks
+- disable buttons when not available
+- show connection to hrm and power 
+- overlay large status for paused - maybe just gray out colors?
+
 2/10/25  - notes after not working on project for a few weeks
 * got new dev laptop and so moving work to it
-* will move code into docker container to keep separate
-* as far as I remember it was kind of working but threading issues. 
-    - I had created a simple sub test to work on running each bluetooth process in separate python process
-    - it needs to communicate via zmq and that wasn't 100%
-* next steps
-    - create docker container and move code in
-    - get zmq communication working
-    - integrate zmq code into actual app
-    
+* integrate zmq code into actual app
+* make 'fake' data generator for testing instead of actual connections
+
+
+****** DONE ******
+2/17/25
+- integrate zmq code into actual app
+- mongo now running in docker env

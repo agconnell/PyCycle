@@ -38,15 +38,15 @@ class Plot(QWidget):
             return
         if self.workout is None:
             return
-        if self.workout.is_paused():
-            return
         
         self.xvals, self.yvals, ticks = self.workout.get_data(self.data_field)
+        # self.workout.msg_workers()
+
         if len(self.xvals) == 0:
             return
        
-        if self.callback:
-            self.callback(self.yvals[-1])
+        # if self.callback:
+        #     self.callback(self.yvals[-1])
 
         # Clear the previous plot
         self.ax.clear()
@@ -66,14 +66,15 @@ class Plot(QWidget):
 
         self.canvas.draw()
 
-    def start(self, workout):
+    def connect(self, workout):
         self.running = True
         self.workout = workout
         self.timer = QTimer()
         self.timer.timeout.connect(lambda: self.update())
         self.timer.start(200)  # Update the label every 1000 milliseconds (1 second)
-        # t = threading.Thread(target=self.listen).start()
-        # t.join()
+
+    def start(self, workout):
+        self.running = True
 
     def stop(self):
         self.running = False
