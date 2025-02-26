@@ -1,10 +1,9 @@
+STOPPED = 0
+PAUSED = 1
+UNPAUSE = 2
+RUNNING = 3
+DONE = 4
 
-
-#ZMQ vars
-REQUEST_TIMEOUT = 5000
-REQUEST_RETRIES = 3
-SERVER_ENDPOINT = "tcp://localhost:5555"
-CLIENT_ENDPOINT = "tcp://*:5555"
 
 # Application States
 DISCONNECTED = 0
@@ -13,10 +12,6 @@ STOPPED = 2
 RUNNING = 3
 PAUSED = 4
 DONE = 5
-
-# connection signals
-CONNECT = 1
-KEEP_ALIVE = 2
 
 # seconds before a lru is disconnected
 TIMEOUT = 5

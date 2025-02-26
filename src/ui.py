@@ -81,8 +81,8 @@ class UI(QWidget):
         self.parent.statusBar().showMessage('Connecting')
         self.workout.connect()
         self.hr_plot.connect(self.workout)
-        self.power_plot.connect(self.workout)
-        self.cadence_plot.connect(self.workout)
+        # self.power_plot.connect(self.workout)
+        # self.cadence_plot.connect(self.workout)
 
     def start(self):
         self.parent.statusBar().showMessage('Started')

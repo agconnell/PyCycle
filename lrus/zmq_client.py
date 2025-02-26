@@ -5,9 +5,23 @@ import itertools
 import logging
 import sys
 
-from zmq_base import REQUEST_TIMEOUT, REQUEST_RETRIES, SERVER_ENDPOINT, SERVER_ENDPOINT
-from zmq_base import DISCONNECTED, DONE
-from zmq_base import FIELD_ID, FIELD_NAME, FIELD_VALUE, FIELD_STATUS
+
+REQUEST_TIMEOUT = 5000
+REQUEST_RETRIES = 3
+SERVER_ENDPOINT = "tcp://localhost:5555"
+
+
+# Application States
+DISCONNECTED = 0
+CONNECTED = 1
+STOPPED = 2
+RUNNING = 3
+PAUSED = 4
+DONE = 5
+
+# seconds before a lru is disconnected
+TIMEOUT = 5
+
 
 class ZMQ_Client():
 
@@ -23,15 +37,7 @@ class ZMQ_Client():
         self.client.connect(SERVER_ENDPOINT)
 
     def handle_message(self, message):
-        if FIELD_STATUS in message:
-            self.status = message[FIELD_STATUS]
-            logging.info(f'{self.id} set status: {self.status}')
-        else:
-            logging.error(f"can't handle message: {message}")
-              
-    def get_value(self):
-        val = random.randrange(100, 125, 1)
-        return  {FIELD_ID: self.id, FIELD_NAME: self.field, FIELD_VALUE: val}
+        pass
     
     def run(self):        
         for sequence in itertools.count():
