@@ -3,10 +3,9 @@ from abc import ABC, abstractmethod
 import logging
 import itertools
 import sys
-import zmq
 from datetime import datetime
+import zmq
 
-from zmq_client import ZMQ_Client
 
 # Application States
 DISCONNECTED = 0
@@ -28,15 +27,18 @@ REQUEST_TIMEOUT = 5000
 REQUEST_RETRIES = 3
 SERVER_ENDPOINT = "tcp://localhost:5555"
 
+MAX_POINTS = 100
+
 
 class LRU(ABC):
-
-    def __init__(self, id, field):
-        self.status = DISCONNECTED
-        self.id = id
+    '''Base class for anything that connects to the app'''
+    def __init__(self, field):
         self.field = field
-        self.value = 0
+        self.points = []
+        self.status = DISCONNECTED
+        
         self.last_update = datetime.now().timestamp()
+        self.retries = REQUEST_RETRIES
 
         logging.info("Connecting to server…")
         self.context = zmq.Context()
@@ -45,26 +47,30 @@ class LRU(ABC):
 
     def set_status(self, status):
         '''Recieves a status update from the server and sets its own status'''
-        self.status = status
+        # print(self.field, 'set status: ', status)
+        self.status = int(status[FIELD_STATUS])
 
     @abstractmethod
-    def mmeasurement_handler(self, message):
-        '''handles incoming data from LRU (hrm/power meter/etc.) and sets
-        it to it's current value then sent to the server off cycle from being updated from LRU'''
-        pass
+    def measurement_handler(self, message):
+        '''
+        this will be called from the running 'real' lru as a callback when data come in
+        '''
 
-    def run(self):        
-        for sequence in itertools.count():
-            
+    @abstractmethod
+    def get_value(self):
+        '''gets the last updated value to be send to workout'''
+
+    async def run(self):
+        '''Start the LRU'''
+        for _ in itertools.count():
             self.client.send_json(self.get_value())
-
             while self.status < DONE:
                 if (self.client.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
-                    self.status = self.client.recv_json()
+                    self.set_status(self.client.recv_json())
+                    break
 
                 self.retries -= 1
-
-                logging.warning("No response from server")
+                logging.warning("%s: No response from server", __name__)
                 # Socket is confused. Close and remove it.
                 self.client.setsockopt(zmq.LINGER, 0)
                 self.client.close()
@@ -81,23 +87,4 @@ class LRU(ABC):
                 logging.info("Resending (%s)", req)
                 self.client.send_json(req)
 
-    def to_time(self, secs):
-        secs = round(secs)
-        h = 0
-        m = 0
-        s = 0
-        if secs > 3600:
-            h = int(secs / 3600)
-            secs = secs - h * 3600
-        if secs > 59:
-            m = int(secs / 60)
-            secs = secs - (m * 60)    
-        s = secs
-
-        if h == 0:
-            return f"{m:02}:{s:02}"
-        else:
-            return f"{h:02}:{m:02}:{s:02}"
- 
-
-        pass
+    

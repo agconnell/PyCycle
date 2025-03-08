@@ -25,7 +25,7 @@ class ZMQ_Client():
     def handle_message(self, message):
         if FIELD_STATUS in message:
             self.status = message[FIELD_STATUS]
-            logging.info(f'{self.id} set status: {self.status}')
+            # logging.info(f'{self.id} set status: {self.status}')
         else:
             logging.error(f"can't handle message: {message}")
               

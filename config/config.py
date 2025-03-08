@@ -14,11 +14,15 @@ PAUSED = 4
 DONE = 5
 
 # seconds before a lru is disconnected
-TIMEOUT = 5
+TIMEOUT = 5000
 
 # message properties
 FIELD_ID = 'id'
 FIELD_NAME = 'field'
 FIELD_VALUE = 'value'
+FIELD_TIME = 'tick'
 FIELD_STATUS = 'status'
 FIELD_LAST_UPDATE = 'last_update'
+
+# configured LRUs 
+LRUS = ['hrm']
