@@ -1,9 +1,10 @@
 
-import zmq
-import random
+'''Base class for an LRU -- Heartrate Monitor, PowerMeter etc.'''
+
 import itertools
 import logging
 import sys
+import zmq
 
 
 REQUEST_TIMEOUT = 5000
@@ -57,7 +58,7 @@ class ZMQ_Client():
 
                 self.retries -= 1
 
-                logging.warning("No response from server")
+                logging.warning("ZMQ_Client: No response from server")
                 # Socket is confused. Close and remove it.
                 self.client.setsockopt(zmq.LINGER, 0)
                 self.client.close()
