@@ -63,18 +63,18 @@ class Plot(QWidget):
         x_data.append(x)
         y_data.append(y)
 
-        while len(x_data) > MAX_POINTS:
-            x_data.pop(0)
-            y_data.pop(0)
+
         self.line.set_xdata(x_data)
         self.line.set_ydata(y_data)
-        tks = self.ticker(x_data[0], x_data[-1], MAX_POINTS)
-        self.ax.set_xticks(tks, minor=False)
-        # self.ax.relim()            # Recalculate limits
-        # self.ax.autoscale_view(tight=True, scalex=True, scaley=False)
+        # tks = self.ticker(x_data[0], x_data[-1], MAX_POINTS)
+        # self.ax.set_xticks(x_data, minor=False)
+        self.ax.relim()            # Recalculate limits
+        self.ax.autoscale_view(tight=True, scalex=True, scaley=False)
 
         # tks = self.ticker(self.xvals[0], self.xvals[-1], MAX_POINTS)
-        self.fig.tight_layout()
+
+        #this makes the chart fill the hroizontal space
+        # self.fig.tight_layout()
         self.canvas.draw()
         self.canvas.flush_events()
 

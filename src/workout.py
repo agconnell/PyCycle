@@ -102,11 +102,12 @@ class Workout(ZmqServer):
     def set_vals(self, field_name, value, time_stamp ):
         '''update with the latest value'''
         self.t += 1
-        run_time = self.to_time(self.t)
-        self.values[field_name].append((int(mean(value)), run_time, time_stamp))
+        # run_time = self.to_time(self.t)
+        run_time = self.t
+        self.values[field_name].append((value, run_time, time_stamp))
         # TODO: it seems like you could do a slice, but that is failing when < 100
         # items, so doing with loop, will check for better way
-        while len(self.values) > MAX_POINTS:
+        while len(self.values[field_name]) > MAX_POINTS:
             self.values[field_name].pop(0)
 
     def handle_message(self, message):
