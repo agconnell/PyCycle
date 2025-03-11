@@ -3,7 +3,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QStackedLayout, QMessageBox
 from PySide6.QtGui import QFont, QPalette, QColor
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QCloseEvent
 from src.plot import Plot
 
 from src.workout import Workout
@@ -163,7 +162,7 @@ class UI(QWidget):
         hrm_layout.setStackingMode(QStackedLayout.StackingMode.StackAll)
         hrm_layout.setSpacing(30)
         self.layout.addLayout(hrm_layout)
-        self.hr_plot = Plot("Heart Rate", 'bpm', "BPM", (50, 150), 'red', 'lightcoral', self._set_hr_label)
+        self.hr_plot = Plot("Heart Rate", 'bpm', "BPM", (0, 250), 'red', 'lightcoral', self._set_hr_label)
         hrm_layout.addWidget(self.hr_plot.plot())
         hrm_layout.addWidget(self.hr_lbl)
         hrm_layout.setCurrentIndex(1)

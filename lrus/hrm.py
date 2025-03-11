@@ -1,100 +1,104 @@
 
+'''class for connecting to a bluetooth heart rate monitor
+and sending the data to the workout class'''
 import os
-os.environ["PYTHONASYNCIODEBUG"] = str(1)
+import sys
 import asyncio
-import zmq
 from datetime import datetime as dt
 import argparse
-from bleak import BleakClient
+import logging
 
+from bleak import BleakClient, BleakScanner
 from pycycling.heart_rate_service import HeartRateService
-from mongo import Mongo
+import zmq
 
-DONE = 'done'
-PAUSE = 'pause'
-RECORDING = False
-DATA_FIELD = 'bpm'
-class HeartRateMonitor():
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from lrus.lru import LRU
+from config.config import DISCONNECTED, DONE, STOPPED, FIELD_NAME, FIELD_VALUE, REQUEST_TIMEOUT
 
-    def __init__(self, workout_id=1):
+
+os.environ["PYTHONASYNCIODEBUG"] = str(1)
+BPM_INDEX = 1
+NUM_RETRIES = 5
+
+class HeartRateMonitor(LRU):
+    '''HRM class'''
+    def __init__(self, field):
+        super().__init__(field)
         self.device_address = "CB:E1:30:26:F4:EE" # arm hrm "CB:E1:30:26:F4:EE"
-        self.RUNNING = True
-        self.mongo = Mongo()
         self.start_time = dt.now().timestamp()
-        self.client = None
+        bleak_client = None
         self.hr_service = None
-        self.uuid = workout_id
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.PAIR)
-        self.socket.connect("tcp://localhost:1234")
+        self.points = []
 
-    def connect(self):
-        print('connect to hrm')
-
-    def to_time(self, secs):
-        secs = round(secs)
-        h = 0
-        m = 0
-        s = 0
-        if secs > 3600:
-            h = int(secs / 3600)
-            secs = secs - h * 3600
-        if secs > 59:
-            m = int(secs / 60)
-            secs = secs - (m * 60)    
-        s = secs
-
-        if h == 0:
-            return f"{m:02}:{s:02}"
+    def get_value(self):
+        '''
+        I have values as a list because might want to keep multiple values between
+        calls to get values, but for now just return the last one
+        '''
+        if len(self.points) > 0:
+            logging.info("HeartRateMonitor 'get_value': %s", self.points)
+            avg = int(sum(self.points)/len(self.points))
+            self.points = []
+            return  avg
         else:
-            return f"{h:02}:{m:02}:{s:02}"
+            return  0
 
-    async def check_pause(self):
-        # print("w1 check if done")
-        if os.path.exists(PAUSE):
-            print("HeartRateMonitor paused")
-            RECORDING = False      
 
-    async def check_done(self):
-        # print("w1 check if done")
-        if os.path.exists(DONE):
-            self.RUNNING = False
-            print("HeartRateMonitor done")
-            # self.socket.send_string("HeartRateMonitor check done")
-            await self.hr_service.disable_hr_measurement_notifications()
-            self.loop.stop()          
-    
-    def mmeasurement_handler(self, data):
-        if RECORDING:
-            n = dt.now()
-            ts = round(n.timestamp()-self.start_time)
-            d = {'date': n, 'timestamp': ts, DATA_FIELD: getattr(data, DATA_FIELD), 'power': 123, 'id': self.uuid}
-            self.mongo.insert_data_point(d)
-        else:
-            print("HeartRateMonitor not recording.... bpm: ", data.bpm)
+    def measurement_handler(self, message):
+        '''receives a message from a HRM and updates the list of values for that HRM'''
+        print("measurement_handler")
+
+    async def scan(self, device_name):
+        '''scans for the device with the given name'''
+        return await BleakScanner.find_device_by_name(device_name)
 
     async def run(self):
-        try:
-            async with BleakClient(self.device_address) as self.client:
-                self.hr_service = HeartRateService(self.client)
-                self.hr_service.set_hr_measurement_handler(self.mmeasurement_handler)
-                await self.hr_service.enable_hr_measurement_notifications()
-                if self.client.is_connected:
-                    while self.RUNNING:
-                        await self.check_done()
-                        await self.check_pause()
+        #this send is to innitiate the connection with the server
+        self.zmq_client.send_json({FIELD_NAME: self.field, FIELD_VALUE: 0})
+        dev = await self.scan('HW706-0020070')
+        async with BleakClient(dev, timeout=5) as bleak_client:
+            try:
 
-                        await asyncio.sleep(1)
-                    
-        except Exception as e:
-            print(e)
-            # self.callback('Error: ' + str(e))
+                def handler(message):
+                    '''receives a message from a HRM and updates the list of values for that HRM'''
+                    if self.status == STOPPED:
+                        msg = {FIELD_NAME: self.field, FIELD_VALUE: message[BPM_INDEX]}
+                        logging.warning("HeartRateMonitor not recording: %s", msg)
+                    else:
+                        self.points.append(message[BPM_INDEX])
+
+                self.hr_service = HeartRateService(bleak_client)
+                self.hr_service.set_hr_measurement_handler(handler)
+                await self.hr_service.enable_hr_measurement_notifications()
+
+                while self.status < DONE :
+                    if (self.zmq_client.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
+                        self.set_status(self.zmq_client.recv_json())
+                        if bleak_client.is_connected:
+                            self.zmq_client.send_json(self.get_value())
+                        else:
+                            logging.warning("HRM disconnected")
+                    else:
+                        print("No response from server")
+                        self._handle_no_response()
+                    await asyncio.sleep(1.0)
+
+            except Exception as e:
+                if self.retries > 0:
+                    self.retries -= 1
+                    logging.warning("Error: %s - Retrying %s more times", e, self.retries)
+                    await self.run()
+                else:
+                    print(f"Error: {e} - No more retries")
+                    self.status = DONE
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('id', type=str, help='workout id')
-    id = parser.parse_args().id
-    hrm = HeartRateMonitor(id)
+    parser.add_argument('field_name', type=str, help='field_name - like bpm, rpm or watts')
+    field_name = parser.parse_args().field_name
+    hrm = HeartRateMonitor(field_name)
     
     os.environ["PYTHONASYNCIODEBUG"] = str(1)
     hrm.loop = asyncio.new_event_loop()

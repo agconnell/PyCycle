@@ -33,28 +33,42 @@ class ZMQ_Client():
         val = random.randrange(100, 125, 1)
         return  {FIELD_ID: self.id, FIELD_NAME: self.field, FIELD_VALUE: val}
     
-    def run(self):        
-        for sequence in itertools.count():
-            
-            self.client.send_json(self.get_value())
+  
+    def _handle_no_response(self):
+        '''Handles the case when there is no response from the server'''
+        self.retries -= 1
+        logging.warning("%s: No response from server", __name__)
+        self.zmq_client.setsockopt(zmq.LINGER, 0)
+        self.zmq_client.close()
+        if self.retries == 0:
+            logging.error("Server seems to be offline, abandoning")
+            sys.exit()
 
+        logging.info("Reconnecting to server…")
+        self._reconnect_zmq_client()
+
+    def _reconnect_zmq_client(self):
+        '''Reconnects the ZMQ client'''
+        self.zmq_client = self.context.socket(zmq.REQ)
+        self.zmq_client.connect(SERVER_ENDPOINT)
+        req = self.get_value()
+        logging.info("Resending (%s)", req)
+        self.zmq_client.send_json(req)
+
+    async def run(self):
+        '''Start the LRU'''
+        for _ in itertools.count():
+            self.zmq_client.send_json(self.get_value())
             while self.status < DONE:
-                if (self.client.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
-                    reply = self.client.recv_json()
-                    if type(reply) == dict:
-                        logging.info("Server replied OK (%s)", reply)
-                        self.retries = REQUEST_RETRIES
-                        break
-                    else:
-                        logging.error("Malformed reply from server: %s", reply)
-                        continue
+                if (self.zmq_client.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
+                    self.set_status(self.zmq_client.recv_json())
+                    break
 
                 self.retries -= 1
-
-                logging.warning("No response from server")
+                logging.warning("%s: No response from server", __name__)
                 # Socket is confused. Close and remove it.
-                self.client.setsockopt(zmq.LINGER, 0)
-                self.client.close()
+                self.zmq_client.setsockopt(zmq.LINGER, 0)
+                self.zmq_client.close()
                 if self.retries == 0:
                     logging.error("Server seems to be offline, abandoning")
                     sys.exit()
@@ -62,10 +76,10 @@ class ZMQ_Client():
                 logging.info("Reconnecting to server…")
 
                 # Create new connection
-                self.client = self.context.socket(zmq.REQ)
-                self.client.connect(SERVER_ENDPOINT)
+                self.zmq_client = self.context.socket(zmq.REQ)
+                self.zmq_client.connect(SERVER_ENDPOINT)
                 req = self.get_value()
                 logging.info("Resending (%s)", req)
-                self.client.send_json(req)
+                self.zmq_client.send_json(req)
 
 

@@ -1,24 +1,15 @@
 
 '''Base class for an LRU -- Heartrate Monitor, PowerMeter etc.'''
-
 import itertools
 import logging
 import sys
 import zmq
 
+from config.config import DISCONNECTED, DONE, REQUEST_TIMEOUT
 
-REQUEST_TIMEOUT = 5000
 REQUEST_RETRIES = 3
 SERVER_ENDPOINT = "tcp://localhost:5555"
 
-
-# Application States
-DISCONNECTED = 0
-CONNECTED = 1
-STOPPED = 2
-RUNNING = 3
-PAUSED = 4
-DONE = 5
 
 # seconds before a lru is disconnected
 TIMEOUT = 5

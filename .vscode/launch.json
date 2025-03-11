@@ -16,7 +16,7 @@
             "name": "ZMQ",
             "type": "debugpy",
             "request": "launch",
-            "program": "zmq/zmq_test.py",
+            "program": "zmq_test_server.py",
             "console": "integratedTerminal"
         },
         {

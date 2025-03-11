@@ -8,36 +8,16 @@ import threading
 import time
 import logging
 from datetime import datetime
+from statistics import mean
 
-from db.mongo import Mongo
+
 from coms.zmq_server import ZmqServer
-from config.config import STOPPED, CONNECTED, RUNNING, DISCONNECTED, DONE, TIMEOUT
-from config.config import FIELD_NAME, FIELD_VALUE
+from config.config import STOPPED, CONNECTED, RUNNING, DISCONNECTED, DONE
+from config.config import FIELD_NAME, FIELD_VALUE, REQUEST_TIMEOUT
 
 XAXIS_RANGE = 30 #5 minutes
 TICK_GAP = 5 #30 seconds
 MAX_POINTS = 100 #max number of points to keep in the plot
-
-##TODO move this to a common module it's duplicated in hrm.py
-def to_time(secs):
-    '''converts seconds into a time format for display 
-        like 90 seconds --> 1:30'''
-    secs = round(secs)
-    h = 0
-    m = 0
-    s = 0
-    if secs > 3600:
-        h = int(secs / 3600)
-        secs = secs - h * 3600
-    if secs > 59:
-        m = int(secs / 60)
-        secs = secs - (m * 60)    
-    s = secs
-
-    if h == 0:
-        return f"{m:02}:{s:02}"
-    else:
-        return f"{h:02}:{m:02}:{s:02}"
     
 class Workout(ZmqServer):
     '''Workout class that handles the workout data from the LRUs'''
@@ -46,9 +26,7 @@ class Workout(ZmqServer):
         super().__init__()
 
         atexit.register(self.done)
-        self.mongo = Mongo()
 
-        self.collection = self.mongo.get_collection()
         self.uuid = uuid.uuid4().hex
         self.status = STOPPED
 
@@ -69,11 +47,11 @@ class Workout(ZmqServer):
         time.sleep(1)
         # print(f"Object {self.name} destroyed.")
    
-    def check_status(self):
+    def check_lru_status(self):
         cur_time = datetime.now().timestamp()
         status = self.status
         for lru, last_update in self.last_updates.items():
-            if cur_time - last_update > TIMEOUT:
+            if cur_time - last_update > REQUEST_TIMEOUT:
                 self.connection_states[lru] = DISCONNECTED
                 status = DISCONNECTED
                 logging.info('LRU: %s is disconnected - last update: %s', lru, cur_time - last_update)
@@ -90,12 +68,42 @@ class Workout(ZmqServer):
         else:
             logging.warning('No value for: %s', lru)
             return 0
+        
+    def get_last_point(self, lru) -> int :
+        '''returns the latest value  
+        '''
+        if lru in self.values and len(self.values[lru]) > 0:
+            #TODO make the tuple a numed tuple so this is clearer
+            return self.values[lru][-1][1], self.values[lru][-1][0]
+        else:
+            logging.warning('No value for: %s', lru)
+            return 0
+
+    def to_time(self, secs):
+        '''converts seconds into a time format for display 
+            like 90 seconds --> 1:30'''
+        secs = round(secs)
+        h = 0
+        m = 0
+        s = 0
+        if secs > 3600:
+            h = int(secs / 3600)
+            secs = secs - h * 3600
+        if secs > 59:
+            m = int(secs / 60)
+            secs = secs - (m * 60)    
+        s = secs
+
+        if h == 0:
+            return f"{m:02}:{s:02}"
+        else:
+            return f"{h:02}:{m:02}:{s:02}"
 
     def set_vals(self, field_name, value, time_stamp ):
-        '''update with the latest value
-        TODO make this a list so if multiple values come in before the update all are plotted'''
+        '''update with the latest value'''
         self.t += 1
-        self.values[field_name].append((value, self.t, time_stamp))
+        run_time = self.to_time(self.t)
+        self.values[field_name].append((int(mean(value)), run_time, time_stamp))
         # TODO: it seems like you could do a slice, but that is failing when < 100
         # items, so doing with loop, will check for better way
         while len(self.values) > MAX_POINTS:
@@ -133,6 +141,7 @@ class Workout(ZmqServer):
 
 
         python_executable = sys.executable
+        # subprocess.Popen([python_executable, 'lrus/hrm.py', 'bpm'])
         subprocess.Popen([python_executable, 'lrus/data_generator.py', 'bpm'])
         subprocess.Popen([python_executable, 'lrus/data_generator.py', 'Watts'])
         subprocess.Popen([python_executable, 'lrus/data_generator.py', 'rpm'])
@@ -154,40 +163,3 @@ class Workout(ZmqServer):
         print('DONE!')
         self.status = DONE
 
-
-    def ticker(self, min, max, num_points):
-        '''Creates nicely spaced ticks for the xAxis
-        not currently used and maybe not needed'''
-        ticks = []
-        max = max + TICK_GAP
-        if num_points < XAXIS_RANGE:
-            min = 0
-            max = XAXIS_RANGE + TICK_GAP
-        for i in range(min, max, TICK_GAP):
-            ticks.append(i)
-        return ticks
-
-    # def get_data(self, field_name):
-
-    #     # data = self.collection.find({'id': self.uuid, field: { '$exists': True } }).sort('timestamp', ASCENDING)
-    #     # data = list(data)
-    #     # data = data[-XAXIS_RANGE:]
-        
-    #     # if len(data) == 0:
-    #     #     return [], [], []
-        
-        
-    #     # res = {key: [d[key] for d in data] for key in data[0].keys()}
-    #     # if field in res:
-    #     #     yvals = res[field]
-    #     #     xvals = res['timestamp']
-    #     # else:
-    #     xvals = yvals = ticks = []
-        
-    #     if len(self.values[field_name]) >  0:
-    #         xvals = [x[0] for x in self.values[field_name]]
-    #         yvals = [x[1] for x in self.values[field_name]]
-    #         ticks = self.ticker(xvals[0], xvals[-1], len(xvals))
-        
-        # return xvals, yvals, ticks
-    
