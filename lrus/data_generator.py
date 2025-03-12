@@ -24,21 +24,7 @@ class DataGenerator(LRU):
         self.baseval = 100
         self.start_time = datetime.now().timestamp()
         self.points = []
-        print("starting data generator")
 
-
-    def get_value(self):
-        '''
-        I have values as a list because might want to keep multiple values between
-        calls to get values, but for now just return the last one
-        '''
-        if len(self.points) > 0:
-            logging.debug("DataGenerator 'get_value': %s", self.points)
-            avg = int(sum(self.points)/len(self.points))
-            self.points = []
-            return  {FIELD_NAME: self.field, FIELD_VALUE:  avg}
-        else:
-            return  {FIELD_NAME: self.field, FIELD_VALUE: 0}
 
 
     def measurement_handler(self, message):
@@ -51,7 +37,7 @@ class DataGenerator(LRU):
 
     async def run(self):
         '''Start the LRU'''
-        print("running data generator")
+        logging.info("running data generator")
         #this send is to innitiate the connection with the server
         self.zmq_client.send_json({FIELD_NAME: self.field, FIELD_VALUE: 0})
 

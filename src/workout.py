@@ -12,7 +12,7 @@ from statistics import mean
 
 
 from coms.zmq_server import ZmqServer
-from config.config import STOPPED, CONNECTED, RUNNING, DISCONNECTED, DONE
+from config.config import DISCONNECTED, CONNECTED, STOPPED, RUNNING, DONE
 from config.config import FIELD_NAME, FIELD_VALUE, REQUEST_TIMEOUT
 
 XAXIS_RANGE = 30 #5 minutes
@@ -36,7 +36,7 @@ class Workout(ZmqServer):
 
         #keeps track of which lrus are connected
         #TODO: this needs to be moved to config page
-        self.values = {'bpm': [], 'Watts': [], 'rpm': []}
+        self.values = {'bpm': [(0, 0, 0)], 'Watts': [(0, 0, 0)], 'rpm': [(0, 0, 0)]}
         self.last_updates = {'bpm': 0, 'Watts': 0, 'rpm': 0}
         self.connection_states = {'bpm': DISCONNECTED, 'Watts': DISCONNECTED, 'rpm': DISCONNECTED}
         self.status = DISCONNECTED
@@ -45,7 +45,6 @@ class Workout(ZmqServer):
     def __del__(self):
         self.status =  DONE
         time.sleep(1)
-        # print(f"Object {self.name} destroyed.")
    
     def check_lru_status(self):
         cur_time = datetime.now().timestamp()
@@ -101,14 +100,21 @@ class Workout(ZmqServer):
 
     def set_vals(self, field_name, value, time_stamp ):
         '''update with the latest value'''
-        self.t += 1
-        # run_time = self.to_time(self.t)
-        run_time = self.t
-        self.values[field_name].append((value, run_time, time_stamp))
-        # TODO: it seems like you could do a slice, but that is failing when < 100
-        # items, so doing with loop, will check for better way
-        while len(self.values[field_name]) > MAX_POINTS:
-            self.values[field_name].pop(0)
+
+        if self.status == RUNNING:
+            # only update the run time while the workout is running
+            self.t += 1
+
+            self.values[field_name].append((value, self.t, time_stamp))
+            # TODO: it seems like you could do a slice, but that is failing when < 100
+            # items, so doing with loop, will check for better way
+            while len(self.values[field_name]) > MAX_POINTS:
+                self.values[field_name].pop(0)
+        if self.status == STOPPED or self.status == CONNECTED:
+            self.values[field_name][0] = (value, self.t, time_stamp)
+
+
+
 
     def handle_message(self, message):
         '''receives a message from a LRU and updates the list of values for that LRU'''

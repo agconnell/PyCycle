@@ -25,24 +25,9 @@ class HeartRateMonitor(LRU):
     '''HRM class'''
     def __init__(self, field):
         super().__init__(field)
-        self.device_address = "CB:E1:30:26:F4:EE" # arm hrm "CB:E1:30:26:F4:EE"
         self.start_time = dt.now().timestamp()
-        bleak_client = None
         self.hr_service = None
         self.points = []
-
-    def get_value(self):
-        '''
-        I have values as a list because might want to keep multiple values between
-        calls to get values, but for now just return the last one
-        '''
-        if len(self.points) > 0:
-            logging.info("HeartRateMonitor 'get_value': %s", self.points)
-            avg = int(sum(self.points)/len(self.points))
-            self.points = []
-            return  avg
-        else:
-            return  0
 
 
     def measurement_handler(self, message):

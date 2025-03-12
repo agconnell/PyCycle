@@ -70,9 +70,18 @@ class LRU(ABC):
         this will be called from the running 'real' lru as a callback when data come in
         '''
 
-    @abstractmethod
     def get_value(self):
-        '''gets the last updated value to be send to workout'''
+        '''
+        I have values as a list because might want to keep multiple values between
+        calls to get values, but for now just return the last one
+        '''
+        if len(self.points) > 0:
+            logging.debug("DataGenerator 'get_value': %s", self.points)
+            avg = int(sum(self.points)/len(self.points))
+            self.points = []
+            return  {FIELD_NAME: self.field, FIELD_VALUE:  avg}
+        else:
+            return  {FIELD_NAME: self.field, FIELD_VALUE: 0}
 
     @abstractmethod
     async def run(self):

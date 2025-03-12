@@ -45,8 +45,6 @@ class ZmqServer(ABC):
                 #send heartbeat
                 self.server.send_json({FIELD_STATUS: self.status})
                 
-                #take a nap
-                time.sleep(SLEEP_INTERVAL)
             except zmq.ZMQError as e:
                 logging.error("ZMQ error in ZMQ server: %s", e)
                 break
@@ -56,4 +54,6 @@ class ZmqServer(ABC):
             except Exception as e:
                 logging.error("Unexpected error in ZMQ server: %s", e)
                 break
+
+            #take a nap
             time.sleep(SLEEP_INTERVAL)

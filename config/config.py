@@ -1,8 +1,4 @@
-STOPPED = 0
-PAUSED = 1
-UNPAUSE = 2
-RUNNING = 3
-DONE = 4
+
 
 
 # Application States
@@ -10,8 +6,7 @@ DISCONNECTED = 0
 CONNECTED = 1
 STOPPED = 2
 RUNNING = 3
-PAUSED = 4
-DONE = 5
+DONE = 4
 
 # seconds before a lru is disconnected
 REQUEST_TIMEOUT = 5000
