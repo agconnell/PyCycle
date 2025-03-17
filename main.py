@@ -3,11 +3,12 @@ import sys
 import asyncio
 import time
 
+from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PySide6.QtGui import QCloseEvent
 from asyncqtpy import QEventLoop
 
-from src.ui import UI
+from ui import UI
 
 
 class MainWindow(QMainWindow):
