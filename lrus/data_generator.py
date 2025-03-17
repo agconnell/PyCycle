@@ -48,7 +48,6 @@ class DataGenerator(LRU):
                     message = {self.field: self.baseval+random.randrange(-10, 10)}
                     self.measurement_handler(message)
                     self.zmq_client.send_json(self.get_value())
-                    # break
 
 
 

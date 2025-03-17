@@ -25,7 +25,7 @@ class Plot(QWidget):
         self.avg_color = avg_color
 
         # setup the actual plot
-        self.fig = Figure(figsize=(1300, 600))
+        self.fig = Figure(figsize=(1300, 300))
         self.canvas = FigureCanvas(self.fig)
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.line = Line2D([], [], color=self.color, linewidth=5)

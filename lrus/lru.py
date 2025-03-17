@@ -33,7 +33,6 @@ class LRU(ABC):
         self.last_update = datetime.now().timestamp()
         self.retries = REQUEST_RETRIES
 
-
         logging.info("Connecting to server…")
         self.context = zmq.Context()
         self.zmq_client = self.context.socket(zmq.REQ)
@@ -81,7 +80,7 @@ class LRU(ABC):
             self.points = []
             return  {FIELD_NAME: self.field, FIELD_VALUE:  avg}
         else:
-            return  {FIELD_NAME: self.field, FIELD_VALUE: 0}
+            return  {FIELD_NAME: self.field, FIELD_VALUE: -1}
 
     @abstractmethod
     async def run(self):

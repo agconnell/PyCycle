@@ -10,6 +10,7 @@ DONE = 4
 
 # seconds before a lru is disconnected
 REQUEST_TIMEOUT = 5000
+SOCKET_TIMEOUT = 15000
 
 # message properties
 FIELD_ID = 'id'

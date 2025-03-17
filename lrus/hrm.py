@@ -14,7 +14,7 @@ import zmq
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from lrus.lru import LRU
-from config.config import DISCONNECTED, DONE, STOPPED, FIELD_NAME, FIELD_VALUE, REQUEST_TIMEOUT
+from config.config import DISCONNECTED, DONE, STOPPED, FIELD_NAME, FIELD_VALUE, REQUEST_TIMEOUT, SOCKET_TIMEOUT
 
 
 os.environ["PYTHONASYNCIODEBUG"] = str(1)
@@ -40,9 +40,15 @@ class HeartRateMonitor(LRU):
 
     async def run(self):
         #this send is to innitiate the connection with the server
-        self.zmq_client.send_json({FIELD_NAME: self.field, FIELD_VALUE: 0})
+        # self.zmq_client.send_json({FIELD_NAME: self.field, FIELD_VALUE: 0})
         dev = await self.scan('HW706-0020070')
-        async with BleakClient(dev, timeout=5) as bleak_client:
+        if not dev:
+            logging.error("HeartRateMonitor Device not found")
+            self.zmq_client.send_json(self.get_value())
+            return
+        
+
+        async with BleakClient(dev, timeout=10) as bleak_client:
             try:
 
                 def handler(message):
@@ -52,22 +58,28 @@ class HeartRateMonitor(LRU):
                         logging.warning("HeartRateMonitor not recording: %s", msg)
                     else:
                         self.points.append(message[BPM_INDEX])
+                        logging.debug("HeartRateMonitor received: %s", message)
 
+                logging.debug("HeartRateMonitor sending connection message: %s", self.get_value())
                 self.hr_service = HeartRateService(bleak_client)
                 self.hr_service.set_hr_measurement_handler(handler)
                 await self.hr_service.enable_hr_measurement_notifications()
+                self.zmq_client.send_json(self.get_value())
 
+
+
+                poller = zmq.Poller()
+                poller.register(self.zmq_client, zmq.POLLIN)
+                socks = dict(poller.poll(SOCKET_TIMEOUT))
+
+                
                 while self.status < DONE :
-                    if (self.zmq_client.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
+                    logging.debug("HeartRateMonitor sending data: %s", self.get_value())
+                    if self.zmq_client in socks and socks[self.zmq_client] == zmq.POLLIN:
                         self.set_status(self.zmq_client.recv_json())
-                        if bleak_client.is_connected:
-                            self.zmq_client.send_json(self.get_value())
-                        else:
-                            logging.warning("HRM disconnected")
                     else:
-                        print("No response from server")
-                        self._handle_no_response()
-                    await asyncio.sleep(1.0)
+                        logging.warning("HRM disconnected")
+                        self.zmq_client.send_json(self.get_value())
 
             except Exception as e:
                 if self.retries > 0:

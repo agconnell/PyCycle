@@ -6,7 +6,7 @@ import subprocess
 import threading
 import logging
 
-from config.config import STOPPED, RUNNING, DONE
+from config.config import CONNECTED, STOPPED, RUNNING, DONE
 from coms.zmq_server import ZmqServer
 
 class TestServer(ZmqServer):
@@ -23,13 +23,15 @@ class TestServer(ZmqServer):
 
     def handle_message(self, message: dict):
         '''Handle the message from the client'''
-        logging.info("Received message: %s", message)
         self.messages += 1
-        if self.messages == 10:
+        logging.info("ZMQ Server Received --  message: %s  status: %s   count: %s", message, self.status, self.messages)
+        if self.messages == 5:
+            self.status = CONNECTED
+        elif self.messages == 10:
             self.status = STOPPED
         elif self.messages == 15:
             self.status = RUNNING
-        elif self.messages > 25:
+        elif self.messages > 19:
             self.status = DONE
 
 if __name__ == "__main__":
@@ -43,4 +45,4 @@ if __name__ == "__main__":
     # subprocess.Popen([python_executable, 'lrus/data_generator.py', 'rpm'])
     subprocess.Popen([python_executable, 'lrus/hrm.py', 'bpm'])
     
-    # server_thread.join()
+    server_thread.join()
